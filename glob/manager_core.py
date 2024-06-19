@@ -387,6 +387,13 @@ class UnifiedManager:
                     'latest_version': {'version': v},
                     'publisher': {'id': 'N/A', 'name': 'N/A'}
                 }
+            elif node_version == 'unknown':
+                res = self.resolve_id_from_repo(fullpath)
+                if res is None:
+                    print(f"Custom node unresolved: {fullpath}")
+                    return
+
+                node_version, node_id, _ = res
         else:
             res = self.resolve_id_from_repo(fullpath)
             if res is None:
@@ -525,34 +532,6 @@ class UnifiedManager:
 
             if 'repository' in x:
                 self.repo_cnr_map[x['repository']] = x
-
-            """
-      "author": "",
-      "category": "",
-      "description": "Transparent Image Layer Diffusion using Latent Transparency",
-      "downloads": 0,
-      "icon": "",
-      "id": "comfyui-layerdiffuse",
-      "license": "LICENSE",
-      "name": "ComfyUI-layerdiffuse",
-      "publisher": {
-        "createdAt": "2024-05-16T22:06:01.581472Z",
-        "description": "",
-        "id": "huchenlei",
-        "logo": "",
-        "members": [],
-        "name": "huchenlei",
-        "source_code_repo": "",
-        "status": "PublisherStatusActive",
-        "support": "",
-        "website": ""
-      },
-      "rating": 0,
-      "repository": "https://github.com/huchenlei/ComfyUI-layerdiffuse",
-      "status": "",
-      "status_detail": "",
-      "tags": []
-            """
 
         # reload node status info from custom_nodes/*
         for x in os.listdir(custom_nodes_path):
@@ -1171,8 +1150,8 @@ class UnifiedManager:
         """
         fix path for nightly and unknown nodes of unmanaged nodes
         """
-        self.reload()
 
+        print(f"Migration: STAGE 2")
         # migrate nightly inactive
         fixes = {}
         for x, v in self.nightly_inactive_nodes.items():
@@ -1181,10 +1160,11 @@ class UnifiedManager:
 
             new_path = os.path.join(custom_nodes_path, '.disabled', f"{x}@nightly")
             shutil.move(v, new_path)
-            fixes[v] = new_path
+            fixes[x] = new_path
 
         self.nightly_inactive_nodes.update(fixes)
 
+        print(f"Migration: STAGE 3")
         # migrate unknown inactive
         fixes = {}
         for x, v in self.unknown_inactive_nodes.items():
@@ -1192,11 +1172,12 @@ class UnifiedManager:
                 continue
 
             new_path = os.path.join(custom_nodes_path, '.disabled', f"{x}@unknown")
-            shutil.move(v, new_path)
-            fixes[v] = v[0], new_path
+            shutil.move(v[1], new_path)
+            fixes[x] = v[0], new_path
 
         self.unknown_inactive_nodes.update(fixes)
 
+        print(f"Migration: STAGE 4")
         # migrate unknown active nodes
         fixes = {}
         for x, v in self.unknown_active_nodes.items():
@@ -1204,29 +1185,29 @@ class UnifiedManager:
                 continue
 
             new_path = os.path.join(custom_nodes_path, f"{x}@unknown")
-            shutil.move(v, new_path)
-            fixes[v] = v[0], new_path
+            shutil.move(v[1], new_path)
+            fixes[x] = v[0], new_path
 
         self.unknown_active_nodes.update(fixes)
 
+        print(f"Migration: STAGE 5")
         # migrate active nodes
         fixes = {}
         for x, v in self.active_nodes.items():
-            if v[0] not in ['unknown', 'nightly']:
+            if v[0] not in ['nightly']:
                 continue
 
-            if v[0] == 'unknown' and v[1].endswith('@unknown'):
+            if v[1].endswith('@nightly'):
                 continue
 
-            if v[0] == 'nightly' and v[1].endswith('@nightly'):
-                continue
-
-            new_path = os.path.join(custom_nodes_path, f"{x}@{v[0]}")
-            shutil.move(v, new_path)
-            fixes[v] = v[0], new_path
+            new_path = os.path.join(custom_nodes_path, f"{x}@nightly")
+            shutil.move(v[1], new_path)
+            fixes[x] = v[0], new_path
 
         self.active_nodes.update(fixes)
 
+        print(f"DONE")
+        
 
 unified_manager = UnifiedManager()
 

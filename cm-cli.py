@@ -975,6 +975,8 @@ def restore_snapshot(
             ps()
 
         # reload
+        unified_manager.reload()
+        asyncio.run(unified_manager.load_nightly(channel_ctx.channel, channel_ctx.mode))
         unified_manager.migrate_unmanaged_nodes()
 
         # print summary
@@ -1112,6 +1114,8 @@ def export_custom_node_ids(
     help="Migrate legacy node system to new node system",
 )
 def migrate():
+    unified_manager.reload()
+    asyncio.run(unified_manager.load_nightly(channel_ctx.channel, channel_ctx.mode))
     unified_manager.migrate_unmanaged_nodes()
 
 
